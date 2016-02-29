@@ -39,7 +39,7 @@
  * ---------------------------------------------------------------- */
 
 nest::music_cont_out_proxy::Parameters_::Parameters_()
-  : port_name_( "event_out" )
+  : port_name_( "cont_out" )
 {
 }
 
@@ -111,7 +111,8 @@ nest::music_cont_out_proxy::~music_cont_out_proxy()
   if ( S_.published_ )
   {
     delete V_.MP_;
-    delete V_.music_perm_ind_;
+    //delete V_.music_perm_ind_;
+    delete V_.DMAP_;
   }
 }
 
@@ -148,19 +149,24 @@ nest::music_cont_out_proxy::calibrate()
 
     S_.port_width_ = V_.MP_->width();
 
+    // TODO array map aufsetzen
+    V_.DMAP_ = new MUSIC::ArrayMap( data, MPI::DOUBLE,  );
+
+    V_.MP_->map( &V_.DMAP_, S_.max_buffered_ );
+
     // check, if there are connections to receiver ports, which are
     // beyond the width of the port
-    std::vector< MUSIC::GlobalIndex >::const_iterator it;
-    for ( it = V_.index_map_.begin(); it != V_.index_map_.end(); ++it )
-      if ( *it > S_.port_width_ )
-        throw UnknownReceptorType( *it, get_name() );
+    //std::vector< MUSIC::GlobalIndex >::const_iterator it;
+    //for ( it = V_.index_map_.begin(); it != V_.index_map_.end(); ++it )
+    //  if ( *it > S_.port_width_ )
+    //    throw UnknownReceptorType( *it, get_name() );
 
     // The permutation index map, contains global_index[local_index]
-    V_.music_perm_ind_ =
-      new MUSIC::PermutationIndex( &V_.index_map_.front(), V_.index_map_.size() );
+    //V_.music_perm_ind_ =
+     // new MUSIC::PermutationIndex( &V_.index_map_.front(), V_.index_map_.size() );
 
     // we identify channels by global indices within NEST
-    V_.MP_->map( V_.music_perm_ind_, MUSIC::Index::GLOBAL );
+    //V_.MP_->map( V_.music_perm_ind_, MUSIC::Index::GLOBAL );
 
     S_.published_ = true;
 

@@ -72,7 +72,7 @@ SeeAlso: music_event_in_proxy, music_cont_in_proxy, music_message_in_proxy
 
 namespace nest
 {
-class music_cont_out_proxy : public Node
+class music_cont_out_proxy : public Multimeter
 {
 
 public:
@@ -93,7 +93,7 @@ public:
   bool
   one_node_per_process() const
   {
-    return true;
+    return false;
   }
 
   /**
@@ -141,6 +141,7 @@ private:
   {
     bool published_; //!< indicates whether this node has been published already with MUSIC
     int port_width_; //!< the width of the MUSIC port
+    int max_buffered_; //!< maximum delay (measured in multiples of music ticks) of publishing new data
 
     State_(); //!< Sets default state value
 
@@ -152,10 +153,11 @@ private:
 
   struct Variables_
   {
-    MUSIC::EventOutputPort* MP_; //!< The MUSIC event port for output of spikes
-    std::vector< MUSIC::GlobalIndex > index_map_;
-    MUSIC::PermutationIndex*
-      music_perm_ind_; //!< The permutation index needed to map the ports of MUSIC.
+    MUSIC::ContOutputPort* MP_; //!< The MUSIC event port for output of spikes
+    MUSIC::ArrayData DMAP_; //!< The MUSIC ArrayData map for output of the observed variables
+    //std::vector< MUSIC::GlobalIndex > index_map_;
+    //MUSIC::PermutationIndex*
+    //  music_perm_ind_; //!< The permutation index needed to map the ports of MUSIC.
   };
 
   // ------------------------------------------------------------
