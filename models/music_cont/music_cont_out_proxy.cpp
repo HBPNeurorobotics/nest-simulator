@@ -56,6 +56,7 @@ nest::music_cont_out_proxy::Parameters_::Parameters_( const Parameters_& p )
 nest::music_cont_out_proxy::State_::State_()
   : published_( false )
   , port_width_( -1 )
+  , max_buffered_( -1 )
 {
 }
 
@@ -80,7 +81,7 @@ nest::music_cont_out_proxy::Parameters_::get( DictionaryDatum& d ) const
 }
 
 void
-nest::music_cont_out_proxy::Parameters_::set( const DictionaryDatum& d, State_& s, const Buffers_& b )
+nest::music_cont_out_proxy::Parameters_::set( const DictionaryDatum& d, const State_& s, const Buffers_& b )
 {
   // TODO: This is not possible, as P_ does not know about get_name()
   //  if(d->known(names::port_name) && s.published_)
@@ -142,17 +143,21 @@ nest::music_cont_out_proxy::State_::set( const DictionaryDatum&, const Parameter
 
 nest::music_cont_out_proxy::music_cont_out_proxy()
   : Node()
-  , device_( *this, RecordingDevice::MULTIMETER, "dat", true, true )
+  //, device_( *this, RecordingDevice::MULTIMETER, "dat", true, true )
   , P_()
   , S_()
+  , V_()
+  , B_()
 {
 }
 
 nest::music_cont_out_proxy::music_cont_out_proxy( const music_cont_out_proxy& n )
   : Node( n )
-  , device_( *this, n.device_ )
+  // , device_( *this, n.device_ )
   , P_( n.P_ )
   , S_( n.S_ )
+  , V_( n.V_ )
+  , B_( n.B_ )
 {
 }
 
@@ -168,21 +173,20 @@ nest::music_cont_out_proxy::~music_cont_out_proxy()
 void
 nest::music_cont_out_proxy::init_state_( const Node& /* np */ )
 {
-  // const music_cont_out_proxy& sd = dynamic_cast<const music_cont_out_proxy&>(np);
-  const Multimeter& asd = dynamic_cast< const Multimeter& >( np );
-  device_.init_state( asd.device_ );
+  // const Multimeter& asd = dynamic_cast< const Multimeter& >( np );
+  // device_.init_state( asd.device_ );
   S_.data_.clear();
 }
 
 void
 nest::music_cont_out_proxy::init_buffers_()
 {
-  device_.init_buffers();
+  // device_.init_buffers();
 }
 
 void nest::music_cont_out_proxy::finalize()
 {
-  device_.finalize();
+  // device_.finalize();
 }
 
 
@@ -196,12 +200,11 @@ port nest::music_cont_out_proxy::send_test_event( Node& target, rport receptor_t
   return p;
 }
 
-
 //OK
 void
 nest::music_cont_out_proxy::calibrate()
 {
-  device_.calibrate();
+  // device_.calibrate();
   V_.new_request_ = false;
   V_.current_request_data_start_ = 0;
   // only publish the output port once,
@@ -254,7 +257,7 @@ nest::music_cont_out_proxy::get_status( DictionaryDatum& d ) const
 {
 
   // get the data from the device
-  device_.get_status( d );
+  // device_.get_status( d );
 
   // if we are the device on thread 0, also get the data from the
   // siblings on other threads
@@ -316,28 +319,21 @@ nest::music_cont_out_proxy::handle( DataLoggingReply& reply )
   // easy access to relevant information
   DataLoggingReply::Container const& info = reply.get_info();
 
-  size_t inactive_skipped = 0; // count records that have been skipped during inactivity
-
   // record all data, time point by time point
   for ( size_t j = 0; j < info.size(); ++j )
   {
     if ( not info[ j ].timestamp.is_finite() )
       break;
 
-    if ( !is_active( info[ j ].timestamp ) )
-    {
-      ++inactive_skipped;
-      continue;
-    }
-
     // store stamp for current data set in event for logging
-    reply.set_stamp( info[ j ].timestamp );
+    // reply.set_stamp( info[ j ].timestamp );
 
     // record sender and time information; in accumulator mode only for first Reply in slice
-    device_.record_event( reply, false ); // false: more data to come
+    // device_.record_event( reply, false ); // false: more data to come
 
     //  print_value_( info[ j ].data );
 
+    // S_.data_.push_back( info[ j ].timestamp );
     S_.data_.push_back( info[ j ].data );
   }
 

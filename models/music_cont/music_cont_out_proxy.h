@@ -28,11 +28,17 @@
 
 #include <vector>
 #include "nest.h"
+#include "name.h"
+#include "connection.h"
+#include "dictutils.h"
 #include "event.h"
 #include "node.h"
 #include "exceptions.h"
-#include "recording_device.h"
+#include "sibling_container.h"
+//#include "recording_device.h"
 #include "music.hh"
+
+
 
 /* BeginDocumentation
 
@@ -73,6 +79,8 @@ SeeAlso: music_event_in_proxy, music_cont_in_proxy, music_message_in_proxy
 
 namespace nest
 {
+class Network;
+
 class music_cont_out_proxy : public Multimeter
 {
 
@@ -107,22 +115,28 @@ public:
 
   void handle( DataLoggingReply& );
 
-  port handles_test_event( SpikeEvent&, rport );
-
   SignalType sends_signal() const;
 
   void get_status( DictionaryDatum& ) const;
   void set_status( const DictionaryDatum& );
 
-private:
+protected:
+
   void init_state_( Node const& );
   void init_buffers_();
   void calibrate();
   void finalize();
 
+  /**
+   * Collect and output membrane potential information.
+   * This function pages all its targets at all pertinent sample
+   * points for membrane potential information and then outputs
+   * that information. The sampled nodes must provide data from
+   * the previous time slice.
+   */
   void update( Time const&, const long_t, const long_t );
 
-  // ------------------------------------------------------------
+private:
 
   struct State_;
 
@@ -138,7 +152,7 @@ private:
     Parameters_( const Parameters_& ); //!< Recalibrate all times
 
     void get( DictionaryDatum& ) const;          //!< Store current values in dictionary
-    void set( const DictionaryDatum&, State_& ); //!< Set values from dicitonary
+    void set( const DictionaryDatum&, const State_&, const Buffers_& ); //!< Set values from dicitonary
   };
 
   // ------------------------------------------------------------
@@ -187,7 +201,7 @@ private:
 
   // ------------------------------------------------------------
   
-  RecordingDevice device_;
+  // RecordingDevice device_;
 
   // ------------------------------------------------------------
 
@@ -197,20 +211,10 @@ private:
   Buffers_ B_;
 };
 
-inline port
-music_cont_out_proxy::handles_test_event( SpikeEvent&, rport receptor_type )
+inline SignalType
+nest::music_cont_out_proxy::sends_signal() const
 {
-  // receptor_type i is mapped to channel i of the MUSIC port so we
-  // have to generate the index map here, that assigns the channel
-  // number to the local index of this connection the local index
-  // equals the number of connection
-
-  if ( !S_.published_ )
-    V_.index_map_.push_back( static_cast< int >( receptor_type ) );
-  else
-    throw MUSICPortAlreadyPublished( get_name(), P_.port_name_ );
-
-  return receptor_type;
+  return ALL;
 }
 
 } // namespace
