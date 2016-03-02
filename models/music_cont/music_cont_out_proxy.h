@@ -31,6 +31,7 @@
 #include "event.h"
 #include "node.h"
 #include "exceptions.h"
+#include "recording_device.h"
 #include "music.hh"
 
 /* BeginDocumentation
@@ -102,10 +103,13 @@ public:
    */
   using Node::handle;
   using Node::handles_test_event;
+  using Node::sends_signal;
 
-  void handle( SpikeEvent& );
+  void handle( DataLoggingReply& );
 
   port handles_test_event( SpikeEvent&, rport );
+
+  SignalType sends_signal() const;
 
   void get_status( DictionaryDatum& ) const;
   void set_status( const DictionaryDatum& );
@@ -114,19 +118,21 @@ private:
   void init_state_( Node const& );
   void init_buffers_();
   void calibrate();
+  void finalize();
 
-  void
-  update( Time const&, const long_t, const long_t )
-  {
-  }
+  void update( Time const&, const long_t, const long_t );
 
   // ------------------------------------------------------------
 
   struct State_;
 
+  struct Buffers_;
+
   struct Parameters_
   {
     std::string port_name_; //!< the name of MUSIC port to connect to
+    Time interval_;                   //!< recording interval, in ms
+    std::vector< Name > record_from_; //!< which data to record
 
     Parameters_();                     //!< Sets default parameter values
     Parameters_( const Parameters_& ); //!< Recalibrate all times
@@ -143,10 +149,25 @@ private:
     int port_width_; //!< the width of the MUSIC port
     int max_buffered_; //!< maximum delay (measured in multiples of music ticks) of publishing new data
 
+    std::vector< std::vector< double_t > > data_; //!< Recorded data
+
     State_(); //!< Sets default state value
 
     void get( DictionaryDatum& ) const;                     //!< Store current values in dictionary
     void set( const DictionaryDatum&, const Parameters_& ); //!< Set values from dicitonary
+  };
+
+  // ------------------------------------------------------------
+
+  struct Buffers_
+  {
+    /** Does this multimeter have targets?
+     * Placed here since it is implementation detail.
+     * @todo Ideally, one should be able to ask ConnectionManager.
+     */
+    Buffers_();
+
+    bool has_targets_;
   };
 
   // ------------------------------------------------------------
@@ -158,13 +179,22 @@ private:
     //std::vector< MUSIC::GlobalIndex > index_map_;
     //MUSIC::PermutationIndex*
     //  music_perm_ind_; //!< The permutation index needed to map the ports of MUSIC.
+    bool new_request_;
+
+    size_t current_request_data_start_;
+
   };
+
+  // ------------------------------------------------------------
+  
+  RecordingDevice device_;
 
   // ------------------------------------------------------------
 
   Parameters_ P_;
   State_ S_;
   Variables_ V_;
+  Buffers_ B_;
 };
 
 inline port
