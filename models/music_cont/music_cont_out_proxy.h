@@ -36,6 +36,7 @@
 #include "exceptions.h"
 #include "sibling_container.h"
 //#include "recording_device.h"
+#include "mpi.h"
 #include "music.hh"
 
 
@@ -163,7 +164,6 @@ private:
     int port_width_; //!< the width of the MUSIC port
     int max_buffered_; //!< maximum delay (measured in multiples of music ticks) of publishing new data
 
-    std::vector< std::vector< double_t > > data_; //!< Recorded data
 
     State_(); //!< Sets default state value
 
@@ -182,6 +182,7 @@ private:
     Buffers_();
 
     bool has_targets_;
+    std::vector< std::vector< double_t > > data_; //!< Recorded data
   };
 
   // ------------------------------------------------------------

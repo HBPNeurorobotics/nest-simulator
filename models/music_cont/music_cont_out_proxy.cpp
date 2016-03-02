@@ -223,9 +223,12 @@ nest::music_cont_out_proxy::calibrate()
       throw MUSICPortHasNoWidth( get_name(), P_.port_name_ );
 
     S_.port_width_ = V_.MP_->width();
+    const size_t doubles_per_port = P_.record_from_.size();
 
     // TODO array map aufsetzen
-    V_.DMAP_ = new MUSIC::ArrayMap( data, MPI::DOUBLE,  );
+    uMPI::MPI_Type_contiguous(doubles_per_port, MPI::DOUBLE, &mpi_car_type);
+    V_.DMAP = new MUSIC::ArrayMap(
+      static_cast< void* >( &( B_.data_[ 0 ] ) ), MPI::DOUBLE, 0, doubles_per_port * S_.port_width_ );
 
     V_.MP_->map( &V_.DMAP_, S_.max_buffered_ );
 
@@ -320,11 +323,15 @@ nest::music_cont_out_proxy::handle( DataLoggingReply& reply )
   DataLoggingReply::Container const& info = reply.get_info();
 
   // record all data, time point by time point
-  for ( size_t j = 0; j < info.size(); ++j )
-  {
-    if ( not info[ j ].timestamp.is_finite() )
-      break;
-
+  //for ( size_t j = 0; j < info.size(); ++j )
+  //{
+    if ( info.size() <= 0 || not info[ info.size() -1 ].timestamp.is_finite() )
+    {
+    }
+    else
+    {
+        S_.data_.push_back( info[ info.size()-1 ].data );
+    }
     // store stamp for current data set in event for logging
     // reply.set_stamp( info[ j ].timestamp );
 
@@ -334,8 +341,7 @@ nest::music_cont_out_proxy::handle( DataLoggingReply& reply )
     //  print_value_( info[ j ].data );
 
     // S_.data_.push_back( info[ j ].timestamp );
-    S_.data_.push_back( info[ j ].data );
-  }
+  //}
 
   V_.new_request_ = false; // correct either we are done with the first reply or any later one
 }

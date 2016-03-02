@@ -145,7 +145,7 @@ nest::music_cont_in_proxy::calibrate()
     S_.port_width_ = V_.MP_->width();
 
     B_.data_ = std::vector< double >( S_.port_width_ );
-    MUSIC::ArrayData data_map(
+    MUSIC:ArrayData data_map(
       static_cast< void* >( &( B_.data_[ 0 ] ) ), MPI::DOUBLE, 0, S_.port_width_ );
 
     V_.MP_->map( &data_map );
