@@ -187,6 +187,7 @@ const Name local( "local" );
 const Name local_id( "local_id" );
 
 const Name MAXERR( "MAXERR" );
+const Name max_buffered( "max_buffered" );
 const Name mean( "mean" );
 const Name memory( "memory" );
 const Name model( "model" );

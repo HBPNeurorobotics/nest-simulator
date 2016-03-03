@@ -358,7 +358,7 @@ nest::music_cont_out_proxy::handle( DataLoggingReply& reply )
         // S_.data_.push_back( info[ info.size()-1 ].data );
         const DataLoggingReply::DataItem item = info.last().data;
         const index receiver_port = reply.get_rport();
-        const size_t record_width = record_from_.size();
+        const size_t record_width = P_.record_from_.size();
         const index port_addr = B_.data_ + (receiver_port * record_width);
         std::copy( port_addr, port_addr + record_width, B_.data_.begin() );
     }

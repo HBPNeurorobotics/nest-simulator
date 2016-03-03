@@ -209,6 +209,7 @@ extern const Name local_id;          //!< Node
 
 extern const Name MAXERR;        //!< Largest permissible error for adaptive stepsize
                                  //!< (Brette & Gerstner 2005)
+extern const Name max_buffered;  //!< Keep data for max n music ticks in buffer
 extern const Name mean;          //!< Miscellaneous parameters
 extern const Name memory;        //!< Recorder parameter
 extern const Name model;         //!< Node parameter

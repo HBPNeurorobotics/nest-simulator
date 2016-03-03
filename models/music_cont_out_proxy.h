@@ -28,16 +28,16 @@
 
 #include <vector>
 #include "nest.h"
-#include "name.h"
-#include "connection.h"
-#include "dictutils.h"
 #include "event.h"
 #include "node.h"
 #include "exceptions.h"
-#include "sibling_container.h"
-//#include "recording_device.h"
 #include "mpi.h"
 #include "music.hh"
+#include "name.h"
+#include "connection.h"
+#include "dictutils.h"
+#include "sibling_container.h"
+//#include "recording_device.h"
 
 
 
@@ -82,7 +82,7 @@ namespace nest
 {
 class Network;
 
-class music_cont_out_proxy : public Multimeter
+class music_cont_out_proxy : public Node 
 {
 
 public:
