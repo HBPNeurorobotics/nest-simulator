@@ -182,7 +182,7 @@ private:
     Buffers_();
 
     bool has_targets_;
-    std::vector< std::vector< double_t > > data_; //!< Recorded data
+    std::vector< double > data_; //!< Recorded data
   };
 
   // ------------------------------------------------------------
@@ -191,9 +191,9 @@ private:
   {
     MUSIC::ContOutputPort* MP_; //!< The MUSIC event port for output of spikes
     MUSIC::ArrayData DMAP_; //!< The MUSIC ArrayData map for output of the observed variables
-    //std::vector< MUSIC::GlobalIndex > index_map_;
-    //MUSIC::PermutationIndex*
-    //  music_perm_ind_; //!< The permutation index needed to map the ports of MUSIC.
+
+    std::vector< MUSIC::GlobalIndex > index_map_;
+    MUSIC::PermutationIndex* music_perm_ind_; //!< The permutation index needed to map the ports of MUSIC.
     bool new_request_;
 
     size_t current_request_data_start_;

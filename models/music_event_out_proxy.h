@@ -154,8 +154,7 @@ private:
   {
     MUSIC::EventOutputPort* MP_; //!< The MUSIC event port for output of spikes
     std::vector< MUSIC::GlobalIndex > index_map_;
-    MUSIC::PermutationIndex*
-      music_perm_ind_; //!< The permutation index needed to map the ports of MUSIC.
+    MUSIC::PermutationIndex* music_perm_ind_; //!< The permutation index needed to map the ports of MUSIC.
   };
 
   // ------------------------------------------------------------

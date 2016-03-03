@@ -192,6 +192,7 @@ void nest::music_cont_out_proxy::finalize()
 
 port nest::music_cont_out_proxy::send_test_event( Node& target, rport receptor_type, synindex, bool )
 {
+
   DataLoggingRequest e( P_.interval_, P_.record_from_ );
   e.set_sender( *this );
   port p = target.handles_test_event( e, receptor_type );
@@ -200,6 +201,8 @@ port nest::music_cont_out_proxy::send_test_event( Node& target, rport receptor_t
   return p;
 }
 
+
+
 //OK
 void
 nest::music_cont_out_proxy::calibrate()
@@ -207,6 +210,7 @@ nest::music_cont_out_proxy::calibrate()
   // device_.calibrate();
   V_.new_request_ = false;
   V_.current_request_data_start_ = 0;
+
   // only publish the output port once,
   if ( !S_.published_ )
   {
@@ -225,10 +229,14 @@ nest::music_cont_out_proxy::calibrate()
     S_.port_width_ = V_.MP_->width();
     const size_t doubles_per_port = P_.record_from_.size();
 
+    // Allocate memory
+    B_.data_.resize( doubles_per_port * S_.port_width_ );
+
     // TODO array map aufsetzen
-    uMPI::MPI_Type_contiguous(doubles_per_port, MPI::DOUBLE, &mpi_car_type);
+    MPI::MPI_Datatype multi_double_type;
+    MPI::MPI_Type_contiguous(doubles_per_port, MPI::DOUBLE, &multi_double_type);
     V_.DMAP = new MUSIC::ArrayMap(
-      static_cast< void* >( &( B_.data_[ 0 ] ) ), MPI::DOUBLE, 0, doubles_per_port * S_.port_width_ );
+      static_cast< void* >( &( B_.data_[ 0 ] ) ), multi_double_type, 0, doubles_per_port * S_.port_width_ );
 
     V_.MP_->map( &V_.DMAP_, S_.max_buffered_ );
 
@@ -331,6 +339,10 @@ nest::music_cont_out_proxy::handle( DataLoggingReply& reply )
     else
     {
         S_.data_.push_back( info[ info.size()-1 ].data );
+        const DataLoggingReply::DataItem item = info[ info.size ].data;
+        const index sender_gid = reply.get_sender_gid();
+        for( index i = 0; i < item.size(); i++ )
+            B_.data_[sender_gid
     }
     // store stamp for current data set in event for logging
     // reply.set_stamp( info[ j ].timestamp );
