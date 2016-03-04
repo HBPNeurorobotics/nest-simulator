@@ -193,10 +193,11 @@ private:
 
   struct Variables_
   {
-    MUSIC::ContOutputPort* MP_; //!< The MUSIC event port for output of spikes
+    MUSIC::ContOutputPort * MP_; //!< The MUSIC event port for output of spikes
 
     std::vector< MUSIC::GlobalIndex > index_map_;
-    MUSIC::PermutationIndex* music_perm_ind_; //!< The permutation index needed to map the ports of MUSIC.
+    MUSIC::PermutationIndex * music_perm_ind_; //!< The permutation index needed to map the ports of MUSIC.
+    //MPI_Datatype * multi_double_type;
 
     bool new_request_;
 

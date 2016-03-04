@@ -53,6 +53,7 @@ nest::music_cont_out_proxy::Parameters_::Parameters_( const Parameters_& p )
   interval_.calibrate();
 }
 
+
 nest::music_cont_out_proxy::State_::State_()
   : published_( false )
   , port_width_( -1 )
@@ -62,9 +63,18 @@ nest::music_cont_out_proxy::State_::State_()
 
 nest::music_cont_out_proxy::Buffers_::Buffers_()
   : has_targets_( false )
+  , data_(  )
 {
 }
 
+nest::music_cont_out_proxy::Variables_::Variables_()
+    : new_request_( false )
+    , current_request_data_start_( 0 )
+    , index_map_( )
+    , MP_( NULL )
+    , music_perm_ind_( NULL )
+{
+}
 /* ----------------------------------------------------------------
  * Parameter extraction and manipulation functions
  * ---------------------------------------------------------------- */
@@ -193,16 +203,18 @@ void nest::music_cont_out_proxy::finalize()
 nest::port nest::music_cont_out_proxy::send_test_event( Node& target, rport receptor_type, synindex, bool )
 {
 
-  if ( !S_.published_ )
-    V_.index_map_.push_back( static_cast< int >( receptor_type ) );
-  else
-    throw MUSICPortAlreadyPublished( get_name(), P_.port_name_ );
 
   DataLoggingRequest e( P_.interval_, P_.record_from_ );
   e.set_sender( *this );
   port p = target.handles_test_event( e, receptor_type );
   if ( p != invalid_port_ and not is_model_prototype() )
     B_.has_targets_ = true;
+
+  if ( !S_.published_ )
+    V_.index_map_.push_back( static_cast< int >( target.get_gid() ) );
+  else
+    throw MUSICPortAlreadyPublished( get_name(), P_.port_name_ );
+
   return p;
 }
 
@@ -247,11 +259,10 @@ nest::music_cont_out_proxy::calibrate()
     V_.music_perm_ind_ = new MUSIC::PermutationIndex( &V_.index_map_.front(), V_.index_map_.size() );
 
     // New MPI datatype which is a compound of multiple double values
-    MPI_Datatype multi_double_type;
-    MPI_Type_contiguous(doubles_per_port, MPI::DOUBLE, &multi_double_type);
+    //MPI_Type_contiguous(doubles_per_port, MPI::DOUBLE, &multi_double_type);
 
     // Setup an array map
-    MUSIC::ArrayData dmap ( static_cast< void* >( &( B_.data_.front() ) ), multi_double_type, V_.music_perm_ind_ );
+    MUSIC::ArrayData dmap ( static_cast< void* >( &( B_.data_.front() ) ), MPI::DOUBLE, V_.music_perm_ind_ );
 
     if( S_.max_buffered_ > 0 )
         V_.MP_->map( &dmap, S_.max_buffered_ );
@@ -348,8 +359,13 @@ nest::music_cont_out_proxy::handle( DataLoggingReply& reply )
   // easy access to relevant information
   DataLoggingReply::Container const& info = reply.get_info();
 
-  const index receiver_port = reply.get_rport();
+  const index sender_gid = reply.get_sender_gid();
+  const index rport = reply.get_rport();
+            std::string msg = String::compose(
+              "sender_gid '%1' rport %2.", sender_gid , rport );
+            net_->message( SLIInterpreter::M_INFO, "debug", msg.c_str() );
   const size_t record_width = P_.record_from_.size();
+  const size_t offset = rport * record_width;
   // record all data, time point by time point
   for ( size_t j = 0; j < info.size(); ++j )
   {
@@ -357,7 +373,14 @@ nest::music_cont_out_proxy::handle( DataLoggingReply& reply )
     {
         // S_.data_.push_back( info[ info.size()-1 ].data );
         const DataLoggingReply::DataItem item = info[ j ].data;
-        const std::vector<double>::iterator port_addr = B_.data_.begin() + (receiver_port * record_width);
+        for ( size_t i = 0; i < item.size(); i++ )
+        {
+            B_.data_[ offset + i ] = item[ i ];
+
+            std::string msg = String::compose(
+              "Data from gid '%1' is %2.", sender_gid , item[i] );
+            net_->message( SLIInterpreter::M_INFO, "debug", msg.c_str() );
+        }
          
     }
     // store stamp for current data set in event for logging
