@@ -166,7 +166,7 @@ nest::music_cont_out_proxy::~music_cont_out_proxy()
   if ( S_.published_ )
   {
     delete V_.MP_;
-    delete V_.DMAP_;
+    delete V_.music_perm_ind_;
   }
 }
 
@@ -175,7 +175,7 @@ nest::music_cont_out_proxy::init_state_( const Node& /* np */ )
 {
   // const Multimeter& asd = dynamic_cast< const Multimeter& >( np );
   // device_.init_state( asd.device_ );
-  S_.data_.clear();
+  B_.data_.clear();
 }
 
 void
@@ -190,7 +190,7 @@ void nest::music_cont_out_proxy::finalize()
 }
 
 
-port nest::music_cont_out_proxy::send_test_event( Node& target, rport receptor_type, synindex, bool )
+nest::port nest::music_cont_out_proxy::send_test_event( Node& target, rport receptor_type, synindex, bool )
 {
 
   if ( !S_.published_ )
@@ -235,7 +235,7 @@ nest::music_cont_out_proxy::calibrate()
     const size_t doubles_per_port = P_.record_from_.size();
 
     // Allocate memory
-    B_.data_.resize( doubles_per_port * S_.port_width_ );
+    B_.data_ = std::vector< double >( doubles_per_port * S_.port_width_ );
 
     // Check if any port is out of bounds
     std::vector< MUSIC::GlobalIndex >::const_iterator it;
@@ -244,21 +244,19 @@ nest::music_cont_out_proxy::calibrate()
         throw UnknownReceptorType( *it, get_name() );
 
     // The permutation index map, contains global_index[local_index]
-    V_.music_perm_ind_ =
-      new MUSIC::PermutationIndex( &V_.index_map_.front(), V_.index_map_.size() );
+    V_.music_perm_ind_ = new MUSIC::PermutationIndex( &V_.index_map_.front(), V_.index_map_.size() );
 
     // New MPI datatype which is a compound of multiple double values
-    MPI::MPI_Datatype multi_double_type;
-    MPI::MPI_Type_contiguous(doubles_per_port, MPI::DOUBLE, &multi_double_type);
+    MPI_Datatype multi_double_type;
+    MPI_Type_contiguous(doubles_per_port, MPI::DOUBLE, &multi_double_type);
 
     // Setup an array map
-    V_.DMAP = new MUSIC::ArrayMap(
-      static_cast< void* >( &( B_.data_[ 0 ] ) ), multi_double_type, V._music_perm_ind_ );
+    MUSIC::ArrayData dmap ( static_cast< void* >( &( B_.data_.front() ) ), multi_double_type, V_.music_perm_ind_ );
 
     if( S_.max_buffered_ > 0 )
-        V_.MP_->map( &V_.DMAP_, S_.max_buffered_ );
+        V_.MP_->map( &dmap, S_.max_buffered_ );
     else
-        V_.MP_->map( &V_.DMAP_ );
+        V_.MP_->map( &dmap );
 
     // check, if there are connections to receiver ports, which are
     // beyond the width of the port
@@ -308,7 +306,7 @@ nest::music_cont_out_proxy::get_status( DictionaryDatum& d ) const
 void nest::music_cont_out_proxy::set_status( const DictionaryDatum& d )
 {
   Parameters_ ptmp = P_; // temporary copy in case of errors
-  ptmp.set( d, S_ );     // throws if BadProperty
+  ptmp.set( d, S_, B_ );     // throws if BadProperty
 
   State_ stmp = S_;
   stmp.set( d, P_ ); // throws if BadProperty
@@ -350,17 +348,17 @@ nest::music_cont_out_proxy::handle( DataLoggingReply& reply )
   // easy access to relevant information
   DataLoggingReply::Container const& info = reply.get_info();
 
+  const index receiver_port = reply.get_rport();
+  const size_t record_width = P_.record_from_.size();
   // record all data, time point by time point
-  //for ( size_t j = 0; j < info.size(); ++j )
-  //{
-    if ( info.size() > 0 && info.last().timestamp.is_finite() )
+  for ( size_t j = 0; j < info.size(); ++j )
+  {
+    if ( info[ j ].timestamp.is_finite() )
     {
         // S_.data_.push_back( info[ info.size()-1 ].data );
-        const DataLoggingReply::DataItem item = info.last().data;
-        const index receiver_port = reply.get_rport();
-        const size_t record_width = P_.record_from_.size();
-        const index port_addr = B_.data_ + (receiver_port * record_width);
-        std::copy( port_addr, port_addr + record_width, B_.data_.begin() );
+        const DataLoggingReply::DataItem item = info[ j ].data;
+        const std::vector<double>::iterator port_addr = B_.data_.begin() + (receiver_port * record_width);
+         
     }
     // store stamp for current data set in event for logging
     // reply.set_stamp( info[ j ].timestamp );
@@ -371,7 +369,7 @@ nest::music_cont_out_proxy::handle( DataLoggingReply& reply )
     //  print_value_( info[ j ].data );
 
     // S_.data_.push_back( info[ j ].timestamp );
-  //}
+  }
 
   V_.new_request_ = false; // correct either we are done with the first reply or any later one
 }

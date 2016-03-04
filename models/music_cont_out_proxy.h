@@ -34,6 +34,7 @@
 #include "mpi.h"
 #include "music.hh"
 #include "name.h"
+#include "nest_names.h"
 #include "connection.h"
 #include "dictutils.h"
 #include "sibling_container.h"
@@ -113,6 +114,7 @@ public:
   using Node::handle;
   using Node::handles_test_event;
   using Node::sends_signal;
+  port send_test_event( Node&, rport , synindex, bool );
 
   void handle( DataLoggingReply& );
 
@@ -142,6 +144,8 @@ private:
   struct State_;
 
   struct Buffers_;
+
+  struct Variables_;
 
   struct Parameters_
   {
@@ -190,7 +194,6 @@ private:
   struct Variables_
   {
     MUSIC::ContOutputPort* MP_; //!< The MUSIC event port for output of spikes
-    MUSIC::ArrayData DMAP_; //!< The MUSIC ArrayData map for output of the observed variables
 
     std::vector< MUSIC::GlobalIndex > index_map_;
     MUSIC::PermutationIndex* music_perm_ind_; //!< The permutation index needed to map the ports of MUSIC.
@@ -198,6 +201,8 @@ private:
     bool new_request_;
 
     size_t current_request_data_start_;
+
+    Variables_();
 
   };
 
