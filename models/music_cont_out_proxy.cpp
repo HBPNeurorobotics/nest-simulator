@@ -91,16 +91,16 @@ nest::music_cont_out_proxy::Parameters_::get( DictionaryDatum& d ) const
 }
 
 void
-nest::music_cont_out_proxy::Parameters_::set( const DictionaryDatum& d, const State_& s, const Buffers_& b )
+nest::music_cont_out_proxy::Parameters_::set( const DictionaryDatum& d, const State_& states, const Buffers_& buffs, Variables_& vars )
 {
   // TODO: This is not possible, as P_ does not know about get_name()
   //  if(d->known(names::port_name) && s.published_)
   //    throw MUSICPortAlreadyPublished(get_name(), P_.port_name_);
 
-  if ( !s.published_ )
+  if ( !states.published_ )
     updateValue< string >( d, names::port_name, port_name_ );
 
-  if ( b.has_targets_ && ( d->known( names::interval ) || d->known( names::record_from ) ) )
+  if ( buffs.has_targets_ && ( d->known( names::interval ) || d->known( names::record_from ) ) )
     throw BadProperty(
       "The recording interval and the list of properties to record "
       "cannot be changed after the multimeter has been connected to "
@@ -130,6 +130,17 @@ nest::music_cont_out_proxy::Parameters_::set( const DictionaryDatum& d, const St
     ArrayDatum ad = getValue< ArrayDatum >( d, names::record_from );
     for ( Token* t = ad.begin(); t != ad.end(); ++t )
       record_from_.push_back( Name( getValue< std::string >( *t ) ) );
+  }
+
+  if ( !states.published_ )
+  {
+    ArrayDatum mca = getValue< ArrayDatum >( d, names::music_channel );
+    for ( Token* t = mca.begin(); t != mca.end(); ++t )
+      vars.index_map_.push_back( static_cast< int > ( getValue< long >( *t ) ) );
+  }
+  else
+  {
+    throw MUSICPortAlreadyPublished( "", port_name_ );
   }
 }
 
@@ -210,10 +221,6 @@ nest::port nest::music_cont_out_proxy::send_test_event( Node& target, rport rece
   if ( p != invalid_port_ and not is_model_prototype() )
     B_.has_targets_ = true;
 
-  if ( !S_.published_ )
-    V_.index_map_.push_back( static_cast< int >( target.get_gid() ) );
-  else
-    throw MUSICPortAlreadyPublished( get_name(), P_.port_name_ );
 
   return p;
 }
@@ -317,7 +324,7 @@ nest::music_cont_out_proxy::get_status( DictionaryDatum& d ) const
 void nest::music_cont_out_proxy::set_status( const DictionaryDatum& d )
 {
   Parameters_ ptmp = P_; // temporary copy in case of errors
-  ptmp.set( d, S_, B_ );     // throws if BadProperty
+  ptmp.set( d, S_, B_, V_ );     // throws if BadProperty
 
   State_ stmp = S_;
   stmp.set( d, P_ ); // throws if BadProperty
