@@ -1,5 +1,5 @@
-stoptime=200
-timestep=0.1
+stoptime=1.2
+timestep=0.001
 [from]
     np=1
     binary=./nest_script.py

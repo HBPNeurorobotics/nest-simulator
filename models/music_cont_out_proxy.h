@@ -156,7 +156,7 @@ private:
     Parameters_();                     //!< Sets default parameter values
     Parameters_( const Parameters_& ); //!< Recalibrate all times
 
-    void get( DictionaryDatum& ) const;          //!< Store current values in dictionary
+    void get( DictionaryDatum&, const Variables_& ) const;          //!< Store current values in dictionary
     void set( const DictionaryDatum&, const State_&, const Buffers_&, Variables_& ); //!< Set values from dicitonary
   };
 
@@ -197,11 +197,8 @@ private:
 
     std::vector< MUSIC::GlobalIndex > index_map_;
     MUSIC::PermutationIndex * music_perm_ind_; //!< The permutation index needed to map the ports of MUSIC.
+    MUSIC::ArrayData * dmap_;
     //MPI_Datatype * multi_double_type;
-
-    bool new_request_;
-
-    size_t current_request_data_start_;
 
     Variables_();
 

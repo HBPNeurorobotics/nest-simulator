@@ -68,9 +68,7 @@ nest::music_cont_out_proxy::Buffers_::Buffers_()
 }
 
 nest::music_cont_out_proxy::Variables_::Variables_()
-    : new_request_( false )
-    , current_request_data_start_( 0 )
-    , index_map_( )
+    : index_map_( )
     , MP_( NULL )
     , music_perm_ind_( NULL )
 {
@@ -80,14 +78,21 @@ nest::music_cont_out_proxy::Variables_::Variables_()
  * ---------------------------------------------------------------- */
 
 void
-nest::music_cont_out_proxy::Parameters_::get( DictionaryDatum& d ) const
+nest::music_cont_out_proxy::Parameters_::get( DictionaryDatum& d, const Variables_& vars ) const
 {
   ( *d )[ names::port_name ] = port_name_;
   ( *d )[ names::interval ] = interval_.get_ms();
-  ArrayDatum ad;
+  ArrayDatum ad_record_from;
   for ( size_t j = 0; j < record_from_.size(); ++j )
-    ad.push_back( LiteralDatum( record_from_[ j ] ) );
-  ( *d )[ names::record_from ] = ad;
+    ad_record_from.push_back( LiteralDatum( record_from_[ j ] ) );
+  ( *d )[ names::record_from ] = ad_record_from;
+
+  std::vector< long_t >* pInd_map_long = new std::vector< long_t >( vars.index_map_.size() );
+  std::copy< std::vector< MUSIC::GlobalIndex >::const_iterator, std::vector< long_t >::iterator >(
+    vars.index_map_.begin(), vars.index_map_.end(), pInd_map_long->begin() );
+
+  ( *d )[ names::index_map ] = IntVectorDatum( pInd_map_long );
+
 }
 
 void
@@ -132,15 +137,18 @@ nest::music_cont_out_proxy::Parameters_::set( const DictionaryDatum& d, const St
       record_from_.push_back( Name( getValue< std::string >( *t ) ) );
   }
 
-  if ( !states.published_ )
+  if ( d->known( names::index_map ) )
   {
-    ArrayDatum mca = getValue< ArrayDatum >( d, names::music_channel );
-    for ( Token* t = mca.begin(); t != mca.end(); ++t )
-      vars.index_map_.push_back( static_cast< int > ( getValue< long >( *t ) ) );
-  }
-  else
-  {
-    throw MUSICPortAlreadyPublished( "", port_name_ );
+      if ( !states.published_ )
+      {
+        ArrayDatum mca = getValue< ArrayDatum >( d, names::index_map );
+        for ( Token* t = mca.begin(); t != mca.end(); ++t )
+          vars.index_map_.push_back( static_cast< int > ( getValue< long >( *t ) ) );
+      }
+      else
+      {
+        throw MUSICPortAlreadyPublished( "", port_name_ );
+      }
   }
 }
 
@@ -153,8 +161,10 @@ nest::music_cont_out_proxy::State_::get( DictionaryDatum& d ) const
 }
 
 void
-nest::music_cont_out_proxy::State_::set( const DictionaryDatum&, const Parameters_& )
+nest::music_cont_out_proxy::State_::set( const DictionaryDatum& d, const Parameters_& p )
 {
+    if( !published_ )
+        max_buffered_ = updateValue< long >( d, names::max_buffered, max_buffered_ );
 }
 
 
@@ -188,6 +198,7 @@ nest::music_cont_out_proxy::~music_cont_out_proxy()
   {
     delete V_.MP_;
     delete V_.music_perm_ind_;
+    delete V_.dmap_;
   }
 }
 
@@ -232,8 +243,6 @@ void
 nest::music_cont_out_proxy::calibrate()
 {
   // device_.calibrate();
-  V_.new_request_ = false;
-  V_.current_request_data_start_ = 0;
 
   // only publish the output port once,
   if ( !S_.published_ )
@@ -253,14 +262,15 @@ nest::music_cont_out_proxy::calibrate()
     S_.port_width_ = V_.MP_->width();
     const size_t doubles_per_port = P_.record_from_.size();
 
+
     // Allocate memory
-    B_.data_ = std::vector< double >( doubles_per_port * S_.port_width_ );
+    B_.data_.resize( doubles_per_port * S_.port_width_ );
 
     // Check if any port is out of bounds
-    std::vector< MUSIC::GlobalIndex >::const_iterator it;
-    for ( it = V_.index_map_.begin(); it != V_.index_map_.end(); ++it )
-      if ( *it > S_.port_width_ )
-        throw UnknownReceptorType( *it, get_name() );
+//    std::vector< MUSIC::GlobalIndex >::const_iterator it;
+//    for ( it = V_.index_map_.begin(); it != V_.index_map_.end(); ++it )
+//      if ( *it > S_.port_width_ )
+//        throw UnknownReceptorType( *it, get_name() );
 
     // The permutation index map, contains global_index[local_index]
     V_.music_perm_ind_ = new MUSIC::PermutationIndex( &V_.index_map_.front(), V_.index_map_.size() );
@@ -269,12 +279,12 @@ nest::music_cont_out_proxy::calibrate()
     //MPI_Type_contiguous(doubles_per_port, MPI::DOUBLE, &multi_double_type);
 
     // Setup an array map
-    MUSIC::ArrayData dmap ( static_cast< void* >( &( B_.data_.front() ) ), MPI::DOUBLE, V_.music_perm_ind_ );
+    V_.dmap_ = new MUSIC::ArrayData( static_cast< void* >( &( B_.data_.front() ) ), MPI::DOUBLE, V_.music_perm_ind_ );
 
     if( S_.max_buffered_ > 0 )
-        V_.MP_->map( &dmap, S_.max_buffered_ );
+        V_.MP_->map( V_.dmap_, S_.max_buffered_ );
     else
-        V_.MP_->map( &dmap );
+        V_.MP_->map( V_.dmap_ );
 
     // check, if there are connections to receiver ports, which are
     // beyond the width of the port
@@ -316,7 +326,7 @@ nest::music_cont_out_proxy::get_status( DictionaryDatum& d ) const
       ( *sibling )->get_status( d );
   }
 
-  P_.get( d );
+  P_.get( d, V_ );
   S_.get( d );
 }
 
@@ -355,7 +365,6 @@ void nest::music_cont_out_proxy::update( Time const& origin, const long_t from, 
   // then added.
   //
   // Note that not all nodes receiving the request will necessarily answer.
-  V_.new_request_ = B_.has_targets_ && !P_.record_from_.empty(); // no targets, no request
   DataLoggingRequest req;
   network()->send( *this, req );
 }
@@ -366,42 +375,24 @@ nest::music_cont_out_proxy::handle( DataLoggingReply& reply )
   // easy access to relevant information
   DataLoggingReply::Container const& info = reply.get_info();
 
-  const index sender_gid = reply.get_sender_gid();
-  const index rport = reply.get_rport();
-            std::string msg = String::compose(
-              "sender_gid '%1' rport %2.", sender_gid , rport );
-            net_->message( SLIInterpreter::M_INFO, "debug", msg.c_str() );
+  const index port = reply.get_port();
   const size_t record_width = P_.record_from_.size();
-  const size_t offset = rport * record_width;
+  const size_t offset = port * record_width;
   // record all data, time point by time point
-  for ( size_t j = 0; j < info.size(); ++j )
-  {
-    if ( info[ j ].timestamp.is_finite() )
-    {
         // S_.data_.push_back( info[ info.size()-1 ].data );
-        const DataLoggingReply::DataItem item = info[ j ].data;
+  const DataLoggingReply::DataItem item = info[ info.size()-1 ].data;
+    if ( info[ info.size()-1 ].timestamp.is_finite() )
+    {
         for ( size_t i = 0; i < item.size(); i++ )
         {
             B_.data_[ offset + i ] = item[ i ];
 
-            std::string msg = String::compose(
-              "Data from gid '%1' is %2.", sender_gid , item[i] );
-            net_->message( SLIInterpreter::M_INFO, "debug", msg.c_str() );
+            //std::string msg = String::compose(
+            //  "Data from gid '%1' is %2.\n Data in buffer: data_[%1] = %2", sender_gid , item[i], i, B_.data_[ offset + i ] );
+            // net_->message( SLIInterpreter::M_INFO, "debug", msg.c_str() );
         }
          
     }
-    // store stamp for current data set in event for logging
-    // reply.set_stamp( info[ j ].timestamp );
-
-    // record sender and time information; in accumulator mode only for first Reply in slice
-    // device_.record_event( reply, false ); // false: more data to come
-
-    //  print_value_( info[ j ].data );
-
-    // S_.data_.push_back( info[ j ].timestamp );
-  }
-
-  V_.new_request_ = false; // correct either we are done with the first reply or any later one
 }
 
 #endif
