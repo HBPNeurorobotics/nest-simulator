@@ -83,13 +83,6 @@ public:
 
   void init_ros( int* argc, char** argv[] );
 
-  /**
-   * Enter the runtime mode. This must be done before simulating. After having entered runtime mode
-   * ports cannot be published anymore.
-   * \param h_min_delay is the length of a time slice, after which commmunication should take place.
-   */
-  void enter_runtime( double_t h_min_delay );
-
 
   void ros_finalize(); // called from MPIManager::mpi_finalize
 
