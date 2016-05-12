@@ -693,7 +693,9 @@ ConnectionManager::send( thread t, index sgid, Event& e )
 {
   if ( sgid < connections_[ t ].size() ) // probably test only fails, if there are no connections
     if ( connections_[ t ].get( sgid ) != 0 ) // only send, if connections exist
+    {
       connections_[ t ].get( sgid )->send( e, t, prototypes_[ t ] );
+    }
 }
 
 size_t

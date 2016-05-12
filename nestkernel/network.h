@@ -1141,7 +1141,6 @@ Network::send( Node& source, EventT& e, const long_t lag )
   e.set_sender( source );
   thread t = source.get_thread();
   index gid = source.get_gid();
-
   assert( !source.has_proxies() );
   connection_manager_.send( t, gid, e );
 }
